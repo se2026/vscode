@@ -487,8 +487,8 @@ class SetupAgent extends Disposable implements IChatAgentImplementation {
 			return false; // only enabled behind an experimental setting
 		}
 
-		if (this.context.state.entitlement !== ChatEntitlement.Unknown || this.context.state.registered) {
-			return false; // only consider signed out users that never registered before
+		if (this.context.state.entitlement !== ChatEntitlement.Unknown) {
+			return false; // only consider signed out users
 		}
 
 		if (ChatEntitlementRequests.providerId(this.configurationService) === defaultChat.provider.enterprise.id) {
@@ -1467,7 +1467,7 @@ class ChatSetupController extends Disposable {
 				if (!result.session) {
 					this.doInstall(); // still install the extension in the background to remind the user to sign-in eventually
 
-					const provider = options.useSocialProvider ?? options.useEnterpriseProvider ? defaultChat.provider.enterprise.id : defaultChat.provider.default.id;
+					const provider = options.useSocialProvider ?? (options.useEnterpriseProvider ? defaultChat.provider.enterprise.id : defaultChat.provider.default.id);
 					this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'failedNotSignedIn', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
 					return undefined; // treat as cancelled because signing in already triggers an error dialog
 				}
@@ -1516,7 +1516,13 @@ class ChatSetupController extends Disposable {
 		const wasRunning = this.context.state.installed && !this.context.state.disabled;
 		let signUpResult: boolean | { errorCode: number } | undefined = undefined;
 
-		const provider = options.useSocialProvider ?? options.useEnterpriseProvider ? defaultChat.provider.enterprise.id : defaultChat.provider.default.id;
+		let provider: string;
+		if (options.forceAnonymous && entitlement === ChatEntitlement.Unknown) {
+			provider = 'anonymous';
+		} else {
+			provider = options.useSocialProvider ?? (options.useEnterpriseProvider ? defaultChat.provider.enterprise.id : defaultChat.provider.default.id);
+		}
+
 		let sessions = session ? [session] : undefined;
 		try {
 			if (
